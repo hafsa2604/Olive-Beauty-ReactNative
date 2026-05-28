@@ -1,0 +1,697 @@
+{
+	"info": {
+		"_postman_id": "c629fb81-17bd-4f7f-85d1-729c42c75a40",
+		"name": "Olive Beauty REST API Collection",
+		"description": "Production-ready Postman Collection for testing all REST API endpoints of the Olive Beauty React Native backend.\n\n### Setup Environment\nSet the following variables in Postman:\n- `baseUrl`: `http://localhost:5000` (or `http://<your-local-ip>:5000` for mobile testing)\n- `userId`: A valid Firebase UID (from registration/login response)\n- `productId`: A valid product document ID (e.g. `1` or `2` or auto-generated ID)\n- `reviewId`: A valid review document ID",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Register Customer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Registers a new customer account in Firebase Auth and provisions their profile document in Firestore."
+					},
+					"response": []
+				},
+				{
+					"name": "Login User or Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticates a customer or admin. To login as Admin, use email `admin@olivebeauty.com` and password `admin123`. The admin account is automatically provisioned if it doesn't exist yet."
+					},
+					"response": []
+				},
+				{
+					"name": "Password Reset Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jane.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/reset-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"reset-password"
+							]
+						},
+						"description": "Sends a secure password reset email via Firebase Auth to the specified email address."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. User Profiles",
+			"item": [
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						},
+						"description": "Retrieves the detailed profile information for a specific user UID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Jane Smith\",\n  \"phone\": \"+1 555 9999\",\n  \"address\": \"456 Sage Avenue, Suite 10\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						},
+						"description": "Updates the contact profile information (such as name, phone, or shipping address) in Firestore."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User Profile (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						},
+						"description": "Deletes the user profile and their associated admin credentials (if applicable) from Firestore."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users"
+							]
+						},
+						"description": "Lists all registered users in Firestore. Used by the admin panel dashboard."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Products Catalog",
+			"item": [
+				{
+					"name": "Get All Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/products",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products"
+							]
+						},
+						"description": "Fetches all products from Firestore. If the products database is empty, the server automatically seeds it with the default 41 items."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/{{productId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"{{productId}}"
+							]
+						},
+						"description": "Gets the detailed parameters (ingredients, stock levels, rating, category) for a single product ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Add Product (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Matcha Exfoliating Scrub\",\n  \"description\": \"Gentle botanical exfoliating face scrub with organic matcha particles and green tea infusions.\",\n  \"price\": 28.50,\n  \"category\": \"skincare\",\n  \"skinType\": \"Suitable for acne-prone skin\",\n  \"ingredients\": \"Matcha leaves, Walnut shell, Green tea extract, Honey\",\n  \"stock\": 35,\n  \"image\": \"glow cleanser.jpeg\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products"
+							]
+						},
+						"description": "Creates a new product document in Firestore."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"price\": 29.99,\n  \"stock\": 120\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/products/{{productId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"{{productId}}"
+							]
+						},
+						"description": "Updates selected fields of an existing product document in Firestore. Recalculates `inStock` automatically."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/products/{{productId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"{{productId}}"
+							]
+						},
+						"description": "Deletes a product document from Firestore."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Cart Operations",
+			"item": [
+				{
+					"name": "Get User Cart",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/cart/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"cart",
+								"{{userId}}"
+							]
+						},
+						"description": "Fetches the current shopping cart items array for the given userId."
+					},
+					"response": []
+				},
+				{
+					"name": "Sync User Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"1\",\n      \"quantity\": 2\n    },\n    {\n      \"productId\": \"5\",\n      \"quantity\": 1\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/cart/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"cart",
+								"{{userId}}"
+							]
+						},
+						"description": "Saves and overwrites the user's active shopping cart array to Firestore."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "5. Wishlist Operations",
+			"item": [
+				{
+					"name": "Get Wishlist / Favorites",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/favorites/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"favorites",
+								"{{userId}}"
+							]
+						},
+						"description": "Fetches the user's saved wishlist product ID array."
+					},
+					"response": []
+				},
+				{
+					"name": "Sync Wishlist / Favorites",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\"1\", \"5\", \"12\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/favorites/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"favorites",
+								"{{userId}}"
+							]
+						},
+						"description": "Saves and overwrites the user's array of favorite product IDs."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Beauty Routines",
+			"item": [
+				{
+					"name": "Get User Routines",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/routines/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"routines",
+								"{{userId}}"
+							]
+						},
+						"description": "Retrieves all custom beauty routines for the user (falling back to standard Morning and Night defaults if none are stored)."
+					},
+					"response": []
+				},
+				{
+					"name": "Sync User Routines",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"routines\": [\n    {\n      \"id\": \"routine-1\",\n      \"name\": \"Matcha Morning Plump\",\n      \"steps\": \"Matcha Scrub → Vitamin C Serum → Glow Protect Cream\",\n      \"category\": \"skincare\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/routines/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"routines",
+								"{{userId}}"
+							]
+						},
+						"description": "Saves and overwrites the custom routines array for the user in Firestore."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "7. Reviews",
+			"item": [
+				{
+					"name": "Get All Reviews",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews"
+							]
+						},
+						"description": "Fetches all customer reviews sorted by newest first."
+					},
+					"response": []
+				},
+				{
+					"name": "Add Product Review",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"productId\": \"1\",\n  \"userId\": \"{{userId}}\",\n  \"authorName\": \"Jane Doe\",\n  \"rating\": 5,\n  \"comment\": \"Absolutely love this Glow Cleanser! My skin feels incredibly refreshed and hydrated after every wash. Clean ingredients match the premium feel.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews"
+							]
+						},
+						"description": "Creates a new product review in Firestore. Automatically re-calculates the product's average rating and reviewCount, saving it inside the products collection."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product Review",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews/{{reviewId}}?productId={{productId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews",
+								"{{reviewId}}"
+							],
+							"query": [
+								{
+									"key": "productId",
+									"value": "{{productId}}",
+									"description": "Required to trigger re-calculation of the product's ratings."
+								}
+							]
+						},
+						"description": "Deletes a specific product review and triggers a re-calculation of its parent product's rating metrics."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "8. Orders",
+			"item": [
+				{
+					"name": "Get All Orders (Admin or Filtered)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders?userId={{userId}}&role=customer",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							],
+							"query": [
+								{
+									"key": "userId",
+									"value": "{{userId}}"
+								},
+								{
+									"key": "role",
+									"value": "customer",
+									"description": "Pass 'admin' to view all store orders, or 'customer' to filter by the user's specific orders."
+								}
+							]
+						},
+						"description": "Fetches checkout histories from Firestore."
+					},
+					"response": []
+				},
+				{
+					"name": "Place Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{userId}}\",\n  \"userEmail\": \"jane.doe@example.com\",\n  \"userName\": \"Jane Doe\",\n  \"contactName\": \"Jane Doe\",\n  \"contactPhone\": \"+1 555 1234\",\n  \"contactEmail\": \"jane.doe@example.com\",\n  \"items\": [\n    {\n      \"productId\": \"1\",\n      \"name\": \"Glow Cleanser\",\n      \"price\": 24.99,\n      \"quantity\": 2\n    }\n  ],\n  \"subtotal\": 49.98,\n  \"shipping\": 5.99,\n  \"total\": 55.97,\n  \"status\": \"pending\",\n  \"paymentMethod\": \"cod\",\n  \"paymentLabel\": \"Cash on Delivery\",\n  \"shippingAddress\": \"123 Lavender Lane, Sage Hills, CA 90210\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/orders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							]
+						},
+						"description": "Creates a new order document in Firestore."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Order Status (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"shipped\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/{{orderId}}/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"{{orderId}}",
+								"status"
+							]
+						},
+						"description": "Updates the shipping status of an order (e.g., `pending`, `processing`, `shipped`, `delivered`, `cancelled`)."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "admin-1",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "reviewId",
+			"value": "seed_1_0",
+			"type": "string"
+		},
+		{
+			"key": "orderId",
+			"value": "replace-with-order-id",
+			"type": "string"
+		}
+	]
+}
