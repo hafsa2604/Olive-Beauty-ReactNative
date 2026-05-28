@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Keyboard, StyleSheet, Text, View, Pressable } from 'react-native';
 
 import { appHref } from '@/lib/href';
+import { AdminCredentialsCard } from '@/components/AdminCredentialsCard';
 import { AppButton } from '@/components/AppButton';
 import { AppInput } from '@/components/AppInput';
 import { GlassCard } from '@/components/GlassCard';
@@ -85,6 +86,8 @@ export default function LoginScreen() {
             {formError ? <Text style={styles.formError}>{formError}</Text> : null}
             <AppButton title="Sign In" onPress={handleLogin} loading={loading} />
           </GlassCard>
+
+          <AdminCredentialsCard />
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>New here? </Text>

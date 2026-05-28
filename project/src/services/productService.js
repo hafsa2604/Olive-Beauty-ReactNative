@@ -1,123 +1,167 @@
-import { apiClient } from './apiClient';
-import { API_BASE_URL } from './apiConfig';
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  onSnapshot,
+} from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from './firebaseConfig';
+import { INITIAL_PRODUCTS } from '@/data/products';
+import { normalizeProduct } from '@/lib/product';
+
+const PRODUCTS_COLLECTION = 'products';
 
 /**
- * Fetches products statically using the REST API.
- */
-export async function fetchProducts() {
-  try {
-    return await apiClient.get('/api/products');
-  } catch (error) {
-    console.error('API fetchProducts error:', error);
-    throw error;
-  }
-}
-
-/**
- * Kept for compatbility. Emulates real-time subscription using a REST fetch.
+ * Fetches all products from Firestore.
+ * Optionally supports a callback for real-time updates.
  */
 export function listenToProducts(onUpdate, onError) {
-  fetchProducts()
-    .then(onUpdate)
-    .catch((error) => {
-      console.warn('Error fetching products inside listenToProducts:', error.message);
+  const q = query(collection(db, PRODUCTS_COLLECTION));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const products = [];
+      snapshot.forEach((docSnap) => {
+        products.push(normalizeProduct({ id: docSnap.id, ...docSnap.data() }));
+      });
+      onUpdate(products);
+    },
+    (error) => {
+      console.warn('Error listening to products:', error.message);
       if (onError) onError(error);
-    });
-  
-  // Return a dummy unsubscribe stub
-  return () => {};
+    }
+  );
 }
 
 /**
- * Creates/Adds a new product using the REST API (Admin).
+ * Fetches products statically using getDocs.
+ */
+export async function fetchProducts() {
+  const querySnapshot = await getDocs(collection(db, PRODUCTS_COLLECTION));
+  const products = [];
+  querySnapshot.forEach((docSnap) => {
+    products.push(normalizeProduct({ id: docSnap.id, ...docSnap.data() }));
+  });
+  return products;
+}
+
+/**
+ * Creates/Adds a new product in Firestore.
  */
 export async function addProduct(productData) {
-  try {
-    return await apiClient.post('/api/products', productData);
-  } catch (error) {
-    console.error('API addProduct error:', error);
-    throw error;
-  }
+  const colRef = collection(db, PRODUCTS_COLLECTION);
+  const payload = {
+    name: productData.name || '',
+    description: productData.description || '',
+    price: parseFloat(productData.price) || 0,
+    category: productData.category || 'skincare',
+    skinType: productData.skinType || 'Suitable for all skin types',
+    hairType: productData.hairType || (productData.category === 'haircare' ? 'Suitable for all hair types' : 'N/A'),
+    ingredients: productData.ingredients || 'Natural botanical extracts',
+    usageInstructions: productData.usageInstructions || 'Apply gently onto clean skin or hair.',
+    rating: parseFloat(productData.rating) || 4.5,
+    stock: parseInt(productData.stock, 10) || 50,
+    inStock: (parseInt(productData.stock, 10) || 50) > 0,
+    image: productData.image || '',
+    createdAt: new Date().toISOString(),
+  };
+
+  const docRef = await addDoc(colRef, payload);
+  return { id: docRef.id, ...payload };
 }
 
 /**
- * Updates an existing product using the REST API (Admin).
+ * Updates an existing product in Firestore.
  */
 export async function updateProduct(id, updates) {
-  try {
-    return await apiClient.put(`/api/products/${id}`, updates);
-  } catch (error) {
-    console.error('API updateProduct error:', error);
-    throw error;
+  const docRef = doc(db, PRODUCTS_COLLECTION, id);
+  const payload = { ...updates };
+  if (payload.price !== undefined) payload.price = parseFloat(payload.price);
+  if (payload.rating !== undefined) payload.rating = parseFloat(payload.rating);
+  if (payload.stock !== undefined) {
+    payload.stock = parseInt(payload.stock, 10);
+    payload.inStock = payload.stock > 0;
   }
+
+  await updateDoc(docRef, payload);
 }
 
 /**
- * Deletes a product using the REST API (Admin).
+ * Deletes a product from Firestore.
  */
 export async function deleteProduct(id) {
-  try {
-    return await apiClient.delete(`/api/products/${id}`);
-  } catch (error) {
-    console.error('API deleteProduct error:', error);
-    throw error;
-  }
+  const docRef = doc(db, PRODUCTS_COLLECTION, id);
+  await deleteDoc(docRef);
 }
 
 /**
- * Uploads a local image via backend REST API and returns image URL.
+ * Uploads a local image (file/picker URI) to Firebase Storage and returns the secure download URL.
+ * Supports Expo Go on both iOS and Android.
  */
 export async function uploadProductImage(localUri) {
   if (!localUri) return null;
 
   try {
-    const formData = new FormData();
-    const fileName = localUri.split('/').pop() || `product-${Date.now()}.jpg`;
+    // Standard react-native fetch-blob strategy compatible with Expo Go
+    const response = await fetch(localUri);
+    const blob = await response.blob();
 
-    formData.append('image', {
-      uri: localUri,
-      name: fileName,
-      type: 'image/jpeg',
-    });
+    // Create a unique filename under products/ folder
+    const fileExtension = localUri.split('.').pop() || 'jpg';
+    const filename = `products/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    const storageRef = ref(storage, filename);
 
-    const response = await fetch(`${API_BASE_URL}/api/uploads/product-image`, {
-      method: 'POST',
-      body: formData,
-    });
+    // Upload to Firebase Storage
+    await uploadBytes(storageRef, blob);
 
-    const raw = await response.text();
-    let result = null;
-    try {
-      result = raw ? JSON.parse(raw) : {};
-    } catch {
-      result = null;
-    }
-
-    if (!response.ok) {
-      const serverMessage =
-        result?.error ||
-        (raw && raw.trim().startsWith('<')
-          ? 'Upload endpoint is unavailable. Please restart backend server and ensure /api/uploads/product-image is active.'
-          : raw) ||
-        `Image upload failed (HTTP ${response.status}).`;
-      throw new Error(serverMessage);
-    }
-
-    if (!result?.imageUrl) {
-      throw new Error('Upload completed but image URL was not returned by server.');
-    }
-
-    return result.imageUrl;
+    // Fetch secure public download URL
+    const downloadUrl = await getDownloadURL(storageRef);
+    return downloadUrl;
   } catch (error) {
-    console.error('Error uploading product image:', error);
+    console.error('Error uploading product image to Firebase Storage:', error);
     throw error;
   }
 }
 
 /**
- * Stub kept for compatibility (seeding is now performed on the Express server startup).
+ * Checks if the products collection is empty and seeds it with INITIAL_PRODUCTS if so.
  */
 export async function seedProductsIfEmpty() {
-  // Handled automatically by the Express API server on startup.
-  return Promise.resolve();
+  try {
+    const querySnapshot = await getDocs(collection(db, PRODUCTS_COLLECTION));
+    if (querySnapshot.empty) {
+      console.log('Firestore products collection is empty. Seeding initial products...');
+      
+      // Seed all 41 default items
+      for (const item of INITIAL_PRODUCTS) {
+        const payload = {
+          name: item.name,
+          description: item.description,
+          price: Number(item.price) || 0,
+          category: item.category || 'skincare',
+          skinType: item.skinType || 'Suitable for all skin types',
+          hairType: item.hairType || (item.category === 'haircare' ? 'Suitable for all hair types' : 'N/A'),
+          ingredients: item.ingredients || 'Natural botanical extracts',
+          usageInstructions: item.usageInstructions || 'Apply gently onto clean skin or hair.',
+          rating: Number(item.rating) || 4.5,
+          stock: Number(item.stock) || 50,
+          inStock: true,
+          image: item.image || '',
+          createdAt: new Date().toISOString(),
+        };
+        
+        // Write item using its original ID to keep references consistent
+        const docRef = doc(db, PRODUCTS_COLLECTION, String(item.id));
+        await setDoc(docRef, payload);
+      }
+      console.log('Successfully seeded 41 products into Firestore!');
+    }
+  } catch (error) {
+    console.error('Failed to seed products into Firestore:', error);
+  }
 }

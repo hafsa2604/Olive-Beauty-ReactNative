@@ -1,97 +1,183 @@
-import { apiClient } from './apiClient';
-import { saveJson } from '@/lib/storage';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { ADMIN_EMAIL, ADMIN_PASSWORD } from '@/constants/auth';
+import { auth, db } from './firebaseConfig';
 
-export const ADMIN_EMAIL = 'admin@olivebeauty.com';
-export const ADMIN_PASSWORD = 'admin123';
+export { ADMIN_EMAIL, ADMIN_PASSWORD };
 
 /**
- * Registers a new customer using the REST API.
+ * Registers a new customer in Firebase Auth and Firestore.
  */
 export async function signUpUser(name, email, password) {
-  const payload = { name, email, password };
-  try {
-    const userData = await apiClient.post('/api/auth/register', payload);
-    
-    // Save session in local storage for persistence
-    await saveJson('@olivebeauty/session', userData);
-    
-    return userData;
-  } catch (error) {
-    console.error('API signUpUser error:', error);
-    // Wrap to match standard Firebase error codes if relevant
-    const err = new Error(error.message);
-    err.code = error.code || 'auth/signup-failed';
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPassword = password.trim();
+
+  if (normalizedEmail === ADMIN_EMAIL) {
+    const err = new Error('This email is reserved for admin access. Sign in from the login screen instead.');
+    err.code = 'auth/admin-email-reserved';
     throw err;
   }
+
+  // Create user in Firebase Authentication
+  const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, normalizedPassword);
+  const uid = userCredential.user.uid;
+
+  const userData = {
+    id: uid,
+    name: name.trim(),
+    email: normalizedEmail,
+    role: 'customer',
+    phone: '',
+    address: '',
+    createdAt: new Date().toISOString(),
+  };
+
+  // Create user profile in Firestore 'users' collection
+  await setDoc(doc(db, 'users', uid), userData);
+
+  return userData;
 }
 
 /**
- * Authenticates a user or admin using the REST API.
+ * Authenticates a user or admin.
+ * If the default admin account does not exist in Firebase, it automatically provisions it.
  */
-export async function loginUser(email, password) {
-  const payload = { email, password };
-  try {
-    const userData = await apiClient.post('/api/auth/login', payload);
-    
-    // Save session in local storage for persistence
-    await saveJson('@olivebeauty/session', userData);
-    
-    return userData;
-  } catch (error) {
-    console.error('API loginUser error:', error);
-    const err = new Error(error.message);
-    err.code = error.code || 'auth/login-failed';
-    throw err;
+async function ensureUserProfile(uid, normalizedEmail) {
+  const profile = await fetchUserProfile(uid);
+  if (profile) return profile;
+
+  const defaultProfile = {
+    id: uid,
+    name: normalizedEmail === ADMIN_EMAIL ? 'Olive Beauty Admin' : normalizedEmail.split('@')[0],
+    email: normalizedEmail,
+    role: normalizedEmail === ADMIN_EMAIL ? 'admin' : 'customer',
+    phone: normalizedEmail === ADMIN_EMAIL ? '+1 555 0100' : '',
+    address: normalizedEmail === ADMIN_EMAIL ? '1 Olive Lane, NY' : '',
+    createdAt: new Date().toISOString(),
+  };
+  await setDoc(doc(db, 'users', uid), defaultProfile);
+  if (defaultProfile.role === 'admin') {
+    await setDoc(doc(db, 'admins', uid), {
+      id: uid,
+      email: ADMIN_EMAIL,
+      role: 'admin',
+      createdAt: defaultProfile.createdAt,
+    }).catch(() => {});
   }
+  return defaultProfile;
+}
+
+async function provisionAdminAccount() {
+  const adminCred = await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
+  const uid = adminCred.user.uid;
+  const adminProfile = {
+    id: uid,
+    name: 'Olive Beauty Admin',
+    email: ADMIN_EMAIL,
+    role: 'admin',
+    phone: '+1 555 0100',
+    address: '1 Olive Lane, NY',
+    createdAt: new Date().toISOString(),
+  };
+  await setDoc(doc(db, 'users', uid), adminProfile);
+  await setDoc(doc(db, 'admins', uid), {
+    id: uid,
+    email: ADMIN_EMAIL,
+    role: 'admin',
+    createdAt: adminProfile.createdAt,
+  });
+  return adminProfile;
+}
+
+export async function loginUser(email, password) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPassword = password.trim();
+  const isAdminLogin =
+    normalizedEmail === ADMIN_EMAIL && normalizedPassword === ADMIN_PASSWORD;
+
+  if (isAdminLogin) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        normalizedEmail,
+        normalizedPassword
+      );
+      return ensureUserProfile(userCredential.user.uid, normalizedEmail);
+    } catch (signInError) {
+      const canBootstrap =
+        signInError.code === 'auth/user-not-found' ||
+        signInError.code === 'auth/invalid-credential' ||
+        signInError.code === 'auth/wrong-password' ||
+        signInError.code === 'auth/configuration-not-found';
+
+      if (!canBootstrap) throw signInError;
+
+      try {
+        return await provisionAdminAccount();
+      } catch (provisionError) {
+        if (provisionError.code === 'auth/email-already-in-use') {
+          const mismatch = new Error(
+            'Admin account exists with a different password. In Firebase Console → Authentication, reset admin@olivebeauty.com to "admin123", or delete that user and sign in again.'
+          );
+          mismatch.code = 'auth/admin-password-mismatch';
+          throw mismatch;
+        }
+        throw provisionError;
+      }
+    }
+  }
+
+  const userCredential = await signInWithEmailAndPassword(
+    auth,
+    normalizedEmail,
+    normalizedPassword
+  );
+  return ensureUserProfile(userCredential.user.uid, normalizedEmail);
 }
 
 /**
- * Sign out of current session.
+ * Sign out of current Firebase session.
  */
 export async function logoutUser() {
-  // Clear local session storage
-  await saveJson('@olivebeauty/session', null);
+  await signOut(auth);
 }
 
 /**
- * Sends a password reset email via the REST API.
+ * Sends a password reset email via Firebase.
  */
 export async function sendPasswordReset(email) {
-  try {
-    await apiClient.post('/api/auth/reset-password', { email });
-  } catch (error) {
-    console.error('API sendPasswordReset error:', error);
-    const err = new Error(error.message);
-    err.code = error.code || 'auth/reset-failed';
-    throw err;
-  }
+  await sendPasswordResetEmail(auth, email.trim().toLowerCase());
 }
 
 /**
- * Fetches user profile from Firestore via the REST API.
+ * Fetches user profile from Firestore.
  */
 export async function fetchUserProfile(uid) {
-  try {
-    return await apiClient.get(`/api/users/${uid}`);
-  } catch (error) {
-    console.error('API fetchUserProfile error:', error);
-    return null;
+  const userRef = doc(db, 'users', uid);
+  const snap = await getDoc(userRef);
+  if (snap.exists()) {
+    return snap.data();
   }
+  return null;
 }
 
 /**
- * Updates user profile details in Firestore via the REST API.
+ * Updates user profile details in Firestore.
  */
 export async function updateUserProfile(uid, updates) {
-  try {
-    const updatedProfile = await apiClient.put(`/api/users/${uid}`, updates);
-    
-    // Refresh local session storage
-    await saveJson('@olivebeauty/session', updatedProfile);
-    
-    return updatedProfile;
-  } catch (error) {
-    console.error('API updateUserProfile error:', error);
-    throw error;
+  const userRef = doc(db, 'users', uid);
+  await updateDoc(userRef, updates);
+  // Also check if admin and sync if needed
+  const snap = await getDoc(userRef);
+  if (snap.exists() && snap.data().role === 'admin') {
+    await updateDoc(doc(db, 'admins', uid), {
+      email: snap.data().email,
+      ...updates,
+    }).catch(() => {}); // Safely catch if not in admins collection
   }
 }

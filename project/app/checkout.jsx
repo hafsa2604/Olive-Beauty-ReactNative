@@ -23,8 +23,8 @@ const PAYMENT_METHODS = [
   },
   {
     id: 'card',
-    title: 'Card Payment',
-    subtitle: 'Visa & Mastercard',
+    title: 'Card Payment (Stripe Test)',
+    subtitle: 'Visa & Mastercard · test mode',
     icon: 'card-outline',
   },
 ];
@@ -241,7 +241,7 @@ export default function CheckoutScreen() {
             <View style={styles.row}>
               <Text style={styles.label}>Payment</Text>
               <Text style={styles.value}>
-                {paymentMethod === 'cod' ? 'Cash on Delivery' : 'Card Payment'}
+                {paymentMethod === 'cod' ? 'Cash on Delivery' : 'Card (Stripe test)'}
               </Text>
             </View>
             <View style={[styles.row, styles.totalRow]}>

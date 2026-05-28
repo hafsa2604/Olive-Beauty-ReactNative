@@ -19,7 +19,7 @@ export default function ManageUsers() {
         onPress: async () => {
           try {
             await deleteUser(item.id);
-            Alert.alert('Success', 'User account successfully deleted.');
+            Alert.alert('Success', 'User account successfully deleted from Firestore.');
           } catch (error) {
             console.error('Delete user failed:', error);
             Alert.alert('Error', 'Failed to delete user account. Please try again.');
@@ -40,7 +40,7 @@ export default function ManageUsers() {
             Registered customers list. Tap the trash icon to permanently remove an account.
           </Text>
         }
-        ListEmptyComponent={<Text style={styles.empty}>No registered customers found.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>No registered customers found in Firestore.</Text>}
         renderItem={({ item }) => (
           <GlassCard style={styles.card}>
             <Text style={styles.name}>{item.name}</Text>

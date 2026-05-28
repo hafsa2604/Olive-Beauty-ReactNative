@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppInput } from '@/components/AppInput';
-import { Spacing } from '@/constants/theme';
+import { STRIPE_TEST_CARD_HINT, STRIPE_TEST_MODE } from '@/constants/stripe';
+import { SageColors, Radius, Spacing } from '@/constants/theme';
 import {
   formatCardNumber,
   formatCvc,
@@ -21,6 +22,13 @@ export function StripeCardFields({
 }) {
   return (
     <View style={styles.wrap}>
+      {STRIPE_TEST_MODE ? (
+        <View style={styles.banner}>
+          <Text style={styles.bannerTitle}>Stripe test mode</Text>
+          <Text style={styles.bannerText}>{STRIPE_TEST_CARD_HINT}</Text>
+        </View>
+      ) : null}
+
       <AppInput
         label="Card number"
         value={cardNumber}
@@ -68,6 +76,25 @@ export function StripeCardFields({
 const styles = StyleSheet.create({
   wrap: {
     marginTop: Spacing.sm,
+  },
+  banner: {
+    backgroundColor: SageColors.sageLight,
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: SageColors.cardBorder,
+  },
+  bannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: SageColors.primaryDark,
+    marginBottom: 4,
+  },
+  bannerText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: SageColors.textMuted,
   },
   row: {
     flexDirection: 'row',

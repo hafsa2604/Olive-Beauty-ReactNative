@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, Pressable, View, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { Alert, StyleSheet, Text, Pressable, View, Image, ActivityIndicator, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { AppButton } from '@/components/AppButton';
@@ -11,8 +11,8 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { useApp } from '@/context/AppContext';
 import { SageColors, Spacing } from '@/constants/theme';
 import { CATEGORY_LABELS } from '@/types';
-import { PRODUCT_IMAGE_FILES, resolveImage } from '@/constants/images';
 import { uploadProductImage } from '@/src/services/productService';
+import { resolveImage } from '@/constants/images';
 
 const CATEGORIES = ['skincare', 'haircare'];
 
@@ -33,32 +33,34 @@ export default function ProductForm() {
   const [usageInstructions, setUsageInstructions] = useState(existing?.usageInstructions ?? '');
   const [rating, setRating] = useState(existing ? String(existing.rating) : '4.5');
   const [stock, setStock] = useState(existing ? String(existing.stock) : '50');
-  const [image, setImage] = useState(existing?.image ?? PRODUCT_IMAGE_FILES[0]);
+  const [image, setImage] = useState(existing?.image ?? '');
+  
   const [selectedImageUri, setSelectedImageUri] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  const handlePickImageFromPhone = async () => {
+  // Pick an image from gallery
+  const handlePickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Please allow photo access to upload an image.');
+        Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to upload product photos.');
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType?.images ? [ImagePicker.MediaType.images] : ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
+        aspect: [1, 1], // Square ratio works best for premium e-commerce catalogs
+        quality: 0.8,
       });
 
-      if (!result.canceled && result.assets?.length) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         setSelectedImageUri(result.assets[0].uri);
       }
     } catch (error) {
       console.error('Image picking error:', error);
-      Alert.alert('Error', 'Failed to open phone gallery.');
+      Alert.alert('Error', 'Failed to open image gallery.');
     }
   };
 
@@ -85,13 +87,12 @@ export default function ProductForm() {
     let finalImageUrl = image;
 
     try {
+      // If a local image was picked, upload it to Firebase Storage first
       if (selectedImageUri) {
         setUploadingImage(true);
+        console.log('Uploading new image to Firebase Storage...');
         finalImageUrl = await uploadProductImage(selectedImageUri);
         setUploadingImage(false);
-      } else if (!PRODUCT_IMAGE_FILES.includes(finalImageUrl) && !String(finalImageUrl).startsWith('http')) {
-        Alert.alert('Invalid Image', 'Please select an asset image or upload one from your phone.');
-        return;
       }
 
       const payload = {
@@ -110,15 +111,15 @@ export default function ProductForm() {
 
       if (existing) {
         await updateProduct(existing.id, payload);
-        Alert.alert('Success', 'Product updated successfully.');
+        Alert.alert('Success', 'Product updated successfully in Firestore!');
       } else {
         await addProduct(payload);
-        Alert.alert('Success', 'Product created successfully.');
+        Alert.alert('Success', 'Product created successfully in Firestore!');
       }
       router.back();
     } catch (error) {
       console.error('Save product failed:', error);
-      Alert.alert('Save Failed', 'Failed to save product: ' + error.message);
+      Alert.alert('Save Failed', 'Failed to save product in Firebase: ' + error.message);
     } finally {
       setUploadingImage(false);
       setSaving(false);
@@ -127,8 +128,9 @@ export default function ProductForm() {
 
   const displayedImage = useMemo(() => {
     if (selectedImageUri) return { uri: selectedImageUri };
-    return image ? resolveImage(image) : null;
-  }, [image, selectedImageUri]);
+    if (image) return resolveImage(image);
+    return null;
+  }, [selectedImageUri, image]);
 
   return (
     <ScreenBackground nested>
@@ -138,39 +140,15 @@ export default function ProductForm() {
           
           {/* Image Upload Area */}
           <Text style={styles.label}>Product Image</Text>
-          <View style={styles.imageSelector}>
+          <Pressable style={styles.imageSelector} onPress={handlePickImage}>
             {displayedImage ? (
               <Image source={displayedImage} style={styles.selectedImage} />
             ) : (
               <View style={styles.imagePlaceholder}>
-                <Text style={styles.placeholderText}>Select a product image below</Text>
+                <Text style={styles.placeholderText}>Tap to select product image</Text>
               </View>
             )}
-          </View>
-          <AppButton
-            title="Upload from phone"
-            variant="outline"
-            onPress={handlePickImageFromPhone}
-            style={styles.uploadBtn}
-          />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.imagePickerRow}>
-            {PRODUCT_IMAGE_FILES.map((file) => {
-              const selected = image === file;
-              return (
-                <Pressable
-                  key={file}
-                  style={[styles.imageChip, selected && styles.imageChipSelected]}
-                  onPress={() => setImage(file)}>
-                  <Text style={[styles.imageChipText, selected && styles.imageChipTextSelected]}>
-                    {file.replace('.jpeg', '').replace('.jpg', '')}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          </Pressable>
 
           <AppInput label="Product Name" value={name} onChangeText={setName} placeholder="e.g. Lavender Hydrosol Serum" />
           
@@ -220,19 +198,20 @@ export default function ProductForm() {
           <AppInput label="Suitable Skin Type" value={skinType} onChangeText={setSkinType} placeholder="e.g. Dry, Oily, Normal, Sensitive" />
           <AppInput label="Suitable Hair Type" value={hairType} onChangeText={setHairType} placeholder="e.g. Frizzy, Fine, Thinning, Color-treated" />
 
+          {saving && (
+            <View style={styles.loaderWrap}>
+              <ActivityIndicator size="small" color={SageColors.primary} />
+              <Text style={styles.loaderText}>
+                {uploadingImage ? 'Uploading image to Firebase Storage...' : 'Saving to Firestore database...'}
+              </Text>
+            </View>
+          )}
+
           <AppButton
             title={existing ? 'Update Product' : 'Add Product'}
             onPress={handleSave}
             disabled={saving}
           />
-          {saving ? (
-            <View style={styles.savingWrap}>
-              <ActivityIndicator size="small" color={SageColors.primary} />
-              <Text style={styles.savingText}>
-                {uploadingImage ? 'Uploading image from phone...' : 'Saving product...'}
-              </Text>
-            </View>
-          ) : null}
         </GlassCard>
       </KeyboardAwareForm>
     </ScreenBackground>
@@ -293,35 +272,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  imagePickerRow: {
-    gap: 8,
-    paddingRight: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  imageChip: {
-    borderWidth: 1,
-    borderColor: SageColors.cardBorder,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: SageColors.white,
-  },
-  imageChipSelected: {
-    borderColor: SageColors.primary,
-    backgroundColor: SageColors.sageLight,
-  },
-  imageChipText: {
-    fontSize: 12,
-    color: SageColors.text,
-    textTransform: 'capitalize',
-  },
-  imageChipTextSelected: {
-    color: SageColors.primaryDark,
-    fontWeight: '700',
-  },
-  uploadBtn: {
-    marginBottom: Spacing.sm,
-  },
   row: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -356,15 +306,15 @@ const styles = StyleSheet.create({
   catTextActive: {
     color: SageColors.white,
   },
-  savingWrap: {
-    marginTop: Spacing.sm,
+  loaderWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
   },
-  savingText: {
-    color: SageColors.textMuted,
+  loaderText: {
     fontSize: 13,
+    color: SageColors.textMuted,
   },
 });

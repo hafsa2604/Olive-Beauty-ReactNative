@@ -70,14 +70,15 @@ export async function processStripeTestPayment({ cardNumber, expiry, cvc, zip, a
   if (number === STRIPE_DECLINE_CARD) {
     return {
       success: false,
-      message: 'Your card was declined. Please try another payment method.',
+      message: 'Your card was declined. (Stripe test card 4000…0002)',
     };
   }
 
   if (!STRIPE_SUCCESS_CARDS.has(number) && !number.startsWith('4242')) {
     return {
       success: false,
-      message: 'Unable to verify this card. Please check your card details and try again.',
+      message:
+        'Use a Stripe test card, e.g. 4242 4242 4242 4242. See checkout hint for details.',
     };
   }
 
@@ -101,7 +102,7 @@ export async function processStripeTestPayment({ cardNumber, expiry, cvc, zip, a
   return {
     success: true,
     paymentId,
-    message: `Payment of $${Number(amount).toFixed(2)} authorized.`,
+    message: `Payment of $${Number(amount).toFixed(2)} authorized (Stripe test mode).`,
     testMode: true,
   };
 }

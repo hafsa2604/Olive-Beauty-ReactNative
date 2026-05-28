@@ -7,7 +7,6 @@ import {
   Text,
   TextInput,
   View,
-  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,46 +21,31 @@ import { appHref } from '@/lib/href';
 import { APP_NAME, SageColors, Radius, Shadows, Spacing } from '@/constants/theme';
 
 export default function HomeScreen() {
-  const { products, addToCart, user, refreshing, refreshData } = useApp();
+  const { products, addToCart, user } = useApp();
   const [search, setSearch] = useState('');
-  const query = search.trim().toLowerCase();
-  const isSearching = query.length > 0;
 
   const trending = useMemo(
     () => [...products].sort((a, b) => b.rating - a.rating).slice(0, 6),
     [products]
   );
 
-  const searchResults = useMemo(() => {
+  const recommended = useMemo(() => {
     let list = [...products];
-    if (query) {
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
       list = list.filter(
         (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.description.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query) ||
-          (p.ingredients || '').toLowerCase().includes(query)
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          p.category.includes(q)
       );
     }
-    return list;
-  }, [products, query]);
-
-  const recommended = useMemo(() => searchResults.slice(0, 8), [searchResults]);
+    return list.slice(0, 8);
+  }, [products, search]);
 
   return (
     <MatchaScreen edges={false}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={refreshData}
-            colors={[SageColors.primary]}
-            tintColor={SageColors.primary}
-          />
-        }
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hello, {user?.name?.split(' ')[0] ?? 'there'}</Text>
@@ -95,53 +79,32 @@ export default function HomeScreen() {
           <CategoryCard category="haircare" onPress={() => router.push(appHref('/category/haircare'))} />
         </View>
 
-        {!isSearching ? (
-          <>
-            <SectionHeader
-              title="Trending"
-              actionLabel="See all"
-              onAction={() => router.push(appHref('/category/skincare'))}
-            />
-            <FlatList
-              horizontal
-              data={trending}
-              keyExtractor={(item) => String(item.id)}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.hList}
-              renderItem={({ item }) => (
-                <View style={styles.hCard}>
-                  <ProductCard product={item} onAddToCart={() => addToCart(item.id)} compact />
-                </View>
-              )}
-            />
-
-            <SectionHeader title="Recommended for You" />
-            <View style={styles.grid}>
-              {recommended.map((item) => (
-                <View key={item.id} style={styles.gridItem}>
-                  <ProductCard product={item} onAddToCart={() => addToCart(item.id)} />
-                </View>
-              ))}
+        <SectionHeader
+          title="Trending"
+          actionLabel="See all"
+          onAction={() => router.push(appHref('/category/skincare'))}
+        />
+        <FlatList
+          horizontal
+          data={trending}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.hList}
+          renderItem={({ item }) => (
+            <View style={styles.hCard}>
+              <ProductCard product={item} onAddToCart={() => addToCart(item.id)} compact />
             </View>
-          </>
-        ) : (
-          <>
-            <SectionHeader title={`Search Results (${searchResults.length})`} />
-            {searchResults.length === 0 ? (
-              <View style={styles.emptySearch}>
-                <Text style={styles.emptySearchText}>No products found for "{search.trim()}"</Text>
-              </View>
-            ) : (
-              <View style={styles.grid}>
-                {searchResults.map((item) => (
-                  <View key={item.id} style={styles.gridItem}>
-                    <ProductCard product={item} onAddToCart={() => addToCart(item.id)} />
-                  </View>
-                ))}
-              </View>
-            )}
-          </>
-        )}
+          )}
+        />
+
+        <SectionHeader title="Recommended for You" />
+        <View style={styles.grid}>
+          {recommended.map((item) => (
+            <View key={item.id} style={styles.gridItem}>
+              <ProductCard product={item} onAddToCart={() => addToCart(item.id)} />
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </MatchaScreen>
   );
@@ -222,13 +185,5 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: '50%',
-  },
-  emptySearch: {
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  emptySearchText: {
-    color: SageColors.textMuted,
-    fontSize: 14,
   },
 });

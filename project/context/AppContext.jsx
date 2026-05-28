@@ -1,7 +1,17 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
-import { loadJson, saveJson } from '@/lib/storage';
+import { onAuthStateChanged } from 'firebase/auth';
+import {
+  collection,
+  doc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
 
+import { auth, db } from '../src/services/firebaseConfig';
 import {
   loginUser,
   signUpUser,
@@ -11,24 +21,26 @@ import {
   ADMIN_EMAIL,
 } from '../src/services/authService';
 import {
-  fetchProducts,
+  listenToProducts,
   addProduct as dbAddProduct,
   updateProduct as dbUpdateProduct,
   deleteProduct as dbDeleteProduct,
+  seedProductsIfEmpty,
 } from '../src/services/productService';
 import { syncCartToFirestore, fetchCartFromFirestore } from '../src/services/cartService';
 import { syncFavoritesToFirestore, fetchFavoritesFromFirestore } from '../src/services/favoriteService';
 import { syncRoutinesToFirestore, fetchRoutinesFromFirestore } from '../src/services/routineService';
 import {
-  fetchReviews,
+  listenToReviews,
+  seedReviewsForProducts,
   addReview as dbAddReview,
   deleteReview as dbDeleteReview,
+  deleteReviewsForProduct,
 } from '../src/services/reviewService';
 import { computeProductRating, sortReviewsNewest } from '@/lib/reviews';
 
 import { AppContext } from './app-context';
 import { appHref } from '@/lib/href';
-import { apiClient } from '@/src/services/apiClient';
 
 export function AppProvider({ children }) {
   const [ready, setReady] = useState(false);
@@ -40,108 +52,142 @@ export function AppProvider({ children }) {
   const [wishlist, setWishlist] = useState([]);
   const [routines, setRoutines] = useState([]);
   const [reviews, setReviews] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
 
-  // Load products & reviews globally
-  const loadCatalogData = useCallback(async () => {
-    try {
-      const [loadedProducts, loadedReviews] = await Promise.all([
-        fetchProducts(),
-        fetchReviews(),
-      ]);
-      setProducts(loadedProducts || []);
-      setReviews(loadedReviews || []);
-    } catch (error) {
-      console.error('Error loading product catalog from REST API:', error);
-    }
-  }, []);
-
-  // Load user-specific data from REST API
-  const loadUserData = useCallback(async (userId, role) => {
-    if (!userId) return;
-    try {
-      const isAdmin = role === 'admin';
-      
-      const [storedCart, storedFavs, storedRoutines, fetchedOrders] = await Promise.all([
-        fetchCartFromFirestore(userId),
-        fetchFavoritesFromFirestore(userId),
-        fetchRoutinesFromFirestore(userId),
-        apiClient.get(`/api/orders?userId=${userId}&role=${role}`),
-      ]);
-
-      setCart(storedCart || []);
-      setWishlist(storedFavs || []);
-      setRoutines(storedRoutines || []);
-      setOrders(fetchedOrders || []);
-
-      if (isAdmin) {
-        const fetchedUsers = await apiClient.get('/api/users');
-        setUsers(fetchedUsers || []);
-      }
-    } catch (error) {
-      console.error('Error loading user details from REST API:', error);
-    }
-  }, []);
-
-  // 1. App Startup: Hydrate session and fetch initial catalog
+  // 1. One-time seeding of products into Firestore if database is empty
   useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        // Load initial products & reviews
-        await loadCatalogData();
+    seedProductsIfEmpty();
+  }, []);
 
-        // Hydrate logged-in user session from AsyncStorage
-        const savedUser = await loadJson('@olivebeauty/session', null);
-        if (savedUser && savedUser.id) {
-          setUser(savedUser);
-          
-          // Verify user session with backend and pull user-specific data
-          const freshProfile = await fetchUserProfile(savedUser.id);
-          if (freshProfile) {
-            setUser(freshProfile);
-            await loadUserData(freshProfile.id, freshProfile.role);
-          } else {
-            // Local session expired or account deleted on backend
-            setUser(null);
-            await saveJson('@olivebeauty/session', null);
+  // 2. Real-time products listener
+  useEffect(() => {
+    const unsubscribe = listenToProducts(
+      (loadedProducts) => {
+        setProducts(loadedProducts);
+      },
+      (error) => console.error('Products listener error:', error)
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // 2b. Real-time reviews listener (all products)
+  useEffect(() => {
+    const unsubscribe = listenToReviews(
+      (loadedReviews) => setReviews(loadedReviews),
+      (error) => console.error('Reviews listener error:', error)
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // 2c. Seed 2–3 demo reviews per product (idempotent; runs once per device)
+  useEffect(() => {
+    if (products.length === 0) return;
+    seedReviewsForProducts(products);
+  }, [products]);
+
+  // 3. Persistent session listener via Firebase Auth
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      try {
+        if (firebaseUser) {
+          // User is signed in. Fetch detailed profile from Firestore
+          const profile = await fetchUserProfile(firebaseUser.uid);
+          setUser(profile);
+
+          if (profile) {
+            // Load user's cart, wishlist, and routines from Firestore
+            const [storedCart, storedFavs, storedRoutines] = await Promise.all([
+              fetchCartFromFirestore(firebaseUser.uid),
+              fetchFavoritesFromFirestore(firebaseUser.uid),
+              fetchRoutinesFromFirestore(firebaseUser.uid),
+            ]);
+            
+            setCart(storedCart);
+            setWishlist(storedFavs);
+            setRoutines(storedRoutines);
           }
+        } else {
+          // User is signed out. Clear all states
+          setUser(null);
+          setCart([]);
+          setWishlist([]);
+          setRoutines([]);
         }
       } catch (err) {
-        console.error('Error initializing application state:', err);
+        console.error('Error loading session profile:', err);
       } finally {
         setReady(true);
       }
-    };
+    });
 
-    initializeApp();
-  }, [loadCatalogData, loadUserData]);
+    return () => unsubscribe();
+  }, []);
 
-  // 2. Global Pull-to-Refresh Handler
-  const refreshData = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await loadCatalogData();
-      if (user && user.id) {
-        const freshProfile = await fetchUserProfile(user.id);
-        if (freshProfile) {
-          setUser(freshProfile);
-          await loadUserData(freshProfile.id, freshProfile.role);
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing app data:', error);
-    } finally {
-      setRefreshing(false);
+  // 4. Real-time Orders and Users listeners depending on authentication state
+  useEffect(() => {
+    if (!user) {
+      setOrders([]);
+      setUsers([]);
+      return;
     }
-  }, [user, loadCatalogData, loadUserData]);
 
-  // 3. Authentication Operations
+    const isAdmin = user.role === 'admin';
+    let unsubscribeOrders = () => {};
+    let unsubscribeUsers = () => {};
+
+    // Listen to all orders; filter/sort in memory (avoids composite Firestore indexes)
+    const ordersCol = collection(db, 'orders');
+
+    unsubscribeOrders = onSnapshot(
+      ordersCol,
+      (snapshot) => {
+        const loadedOrders = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (!isAdmin && data.userId !== user.id) return;
+          loadedOrders.push({ id: docSnap.id, ...data });
+        });
+        loadedOrders.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setOrders(loadedOrders);
+      },
+      (err) => {
+        if (err?.code === 'failed-precondition') {
+          console.warn(
+            'Orders listener needs a Firestore index or updated rules. Orders may be empty until fixed.'
+          );
+        } else {
+          console.error('Orders snapshot error:', err);
+        }
+        setOrders([]);
+      }
+    );
+
+    // If Admin, listen to all users in real-time
+    if (isAdmin) {
+      const usersCol = collection(db, 'users');
+      unsubscribeUsers = onSnapshot(
+        usersCol,
+        (snapshot) => {
+          const loadedUsers = [];
+          snapshot.forEach((doc) => {
+            loadedUsers.push({ id: doc.id, ...doc.data() });
+          });
+          setUsers(loadedUsers);
+        },
+        (err) => console.error('Users snapshot error:', err)
+      );
+    }
+
+    return () => {
+      unsubscribeOrders();
+      unsubscribeUsers();
+    };
+  }, [user]);
+
+  // 5. Auth operations
   const login = useCallback(async (email, password) => {
     try {
       const profile = await loginUser(email, password);
       setUser(profile);
-      // Load user profile specific data immediately
-      await loadUserData(profile.id, profile.role);
       return null; // Return null on success (no error)
     } catch (error) {
       let message = 'Invalid email or password';
@@ -151,16 +197,17 @@ export function AppProvider({ children }) {
       if (error.code === 'auth/too-many-requests') {
         message = 'Too many attempts. Please wait a moment and try again.';
       }
+      if (__DEV__ && error.code !== 'auth/invalid-credential') {
+        console.warn('Login error:', error.code || error.message);
+      }
       return message;
     }
-  }, [loadUserData]);
+  }, []);
 
   const register = useCallback(async (name, email, password) => {
     try {
       const profile = await signUpUser(name, email, password);
       setUser(profile);
-      // Load empty cart/wishlist details
-      await loadUserData(profile.id, profile.role);
       return null; // Return null on success
     } catch (error) {
       console.error('Registration error:', error);
@@ -173,7 +220,7 @@ export function AppProvider({ children }) {
       }
       return message;
     }
-  }, [loadUserData]);
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -182,8 +229,6 @@ export function AppProvider({ children }) {
       setCart([]);
       setWishlist([]);
       setRoutines([]);
-      setOrders([]);
-      setUsers([]);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -193,8 +238,9 @@ export function AppProvider({ children }) {
     async (updates) => {
       if (!user) return;
       try {
-        const updated = await updateUserProfile(user.id, updates);
-        setUser(updated);
+        await updateUserProfile(user.id, updates);
+        // Local state will update via next render, but let's refresh locally immediately for UI snappiness
+        setUser((prev) => (prev ? { ...prev, ...updates } : null));
       } catch (error) {
         console.error('Update profile error:', error);
         throw error;
@@ -203,7 +249,7 @@ export function AppProvider({ children }) {
     [user]
   );
 
-  // 4. Favorites/Wishlist system (REST synchronized)
+  // 6. Favorites/Wishlist system (synchronized in Firestore)
   const toggleWishlist = useCallback(
     async (productId) => {
       if (!user) return;
@@ -222,7 +268,7 @@ export function AppProvider({ children }) {
     [wishlist]
   );
 
-  // 5. Cart system (REST synchronized)
+  // 7. Cart system (synchronized in Firestore)
   const addToCart = useCallback(
     async (productId, quantity = 1) => {
       if (!user) return;
@@ -280,7 +326,7 @@ export function AppProvider({ children }) {
     [products]
   );
 
-  // 6. Orders Placement via API
+  // 8. Orders placement
   const placeOrder = useCallback(
     async (orderDetails) => {
       if (!user || cart.length === 0) return null;
@@ -320,76 +366,66 @@ export function AppProvider({ children }) {
         paymentLabel:
           orderDetails.paymentMethod === 'cod'
             ? 'Cash on Delivery'
-            : 'Card Payment',
+            : 'Card (Stripe test)',
         paymentStatus: orderDetails.paymentStatus || 'pending',
         stripePaymentId: orderDetails.stripePaymentId || null,
         shippingAddress: orderDetails.shippingAddress.trim(),
+        createdAt: new Date().toISOString(),
       };
 
       try {
-        const orderResult = await apiClient.post('/api/orders', orderData);
-        
-        // Refresh local orders list
-        setOrders((prev) => [orderResult, ...prev]);
+        const orderRef = await addDoc(collection(db, 'orders'), orderData);
         await clearCart();
-        
-        return orderResult;
+        return { id: orderRef.id, ...orderData };
       } catch (error) {
-        console.error('Error placing order via REST API:', error);
+        console.error('Error placing order:', error);
         throw error;
       }
     },
     [user, cart, products, clearCart]
   );
 
-  // 7. Admin Operations (CRUD Products via API)
+  // 9. Admin operations (CRUD Products)
   const addProduct = useCallback(async (productData) => {
     try {
-      const newProduct = await dbAddProduct(productData);
-      setProducts((prev) => [...prev, newProduct]);
+      await dbAddProduct(productData);
     } catch (error) {
-      console.error('Add product API error:', error);
+      console.error('Add product error:', error);
       throw error;
     }
   }, []);
 
   const updateProduct = useCallback(async (id, updates) => {
     try {
-      const updatedProduct = await dbUpdateProduct(id, updates);
-      setProducts((prev) =>
-        prev.map((p) => (String(p.id) === String(id) ? { ...p, ...updatedProduct } : p))
-      );
+      await dbUpdateProduct(id, updates);
     } catch (error) {
-      console.error('Update product API error:', error);
+      console.error('Update product error:', error);
       throw error;
     }
   }, []);
 
   const deleteProduct = useCallback(async (id) => {
     try {
+      await deleteReviewsForProduct(id);
       await dbDeleteProduct(id);
-      setProducts((prev) => prev.filter((p) => String(p.id) !== String(id)));
-      
-      // Clean up product from active user cart locally & on server
+      // Clean up product from existing user carts if it is deleted from database
       setCart((prev) => {
         const next = prev.filter((i) => i.productId !== id);
         if (user) syncCartToFirestore(user.id, next);
         return next;
       });
     } catch (error) {
-      console.error('Delete product API error:', error);
+      console.error('Delete product error:', error);
       throw error;
     }
   }, [user]);
 
   const updateOrderStatus = useCallback(async (orderId, status) => {
     try {
-      await apiClient.put(`/api/orders/${orderId}/status`, { status });
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-      );
+      const orderRef = doc(db, 'orders', orderId);
+      await updateDoc(orderRef, { status });
     } catch (error) {
-      console.error('Update order status API error:', error);
+      console.error('Update order status error:', error);
       throw error;
     }
   }, []);
@@ -398,17 +434,20 @@ export function AppProvider({ children }) {
     async (userId) => {
       if (userId === user?.id) return; // Prevent deleting oneself
       try {
-        await apiClient.delete(`/api/users/${userId}`);
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
+        const userRef = doc(db, 'users', userId);
+        await deleteDoc(userRef);
+        // Also remove from admins if they are an admin
+        const adminRef = doc(db, 'admins', userId);
+        await deleteDoc(adminRef).catch(() => {});
       } catch (error) {
-        console.error('Delete user API error:', error);
+        console.error('Delete user error:', error);
         throw error;
       }
     },
     [user]
   );
 
-  // 8. Beauty Routines via API
+  // 10. Beauty Routines
   const addRoutine = useCallback(
     async (name, steps) => {
       if (!user) return;
@@ -469,35 +508,25 @@ export function AppProvider({ children }) {
       if (!ratingNum || ratingNum < 1 || ratingNum > 5) return 'Please select a rating from 1 to 5 stars.';
 
       try {
-        const newReview = await dbAddReview({
+        await dbAddReview({
           productId,
           userId: user.id,
           authorName: user.name || user.email?.split('@')[0] || 'Customer',
           rating: ratingNum,
           comment,
         });
-
-        // Add review locally and update product rating locally
-        setReviews((prev) => [newReview, ...prev]);
-        await loadCatalogData(); // Fetch refreshed stats from API
         return null;
       } catch (error) {
-        console.error('Add review API error:', error);
+        console.error('Add review error:', error);
         return 'Could not post your review. Please try again.';
       }
     },
-    [user, loadCatalogData]
+    [user]
   );
 
   const deleteReview = useCallback(async (reviewId, productId) => {
-    try {
-      await dbDeleteReview(reviewId, productId);
-      setReviews((prev) => prev.filter((r) => r.id !== reviewId));
-      await loadCatalogData(); // Fetch refreshed stats from API
-    } catch (error) {
-      console.error('Delete review API error:', error);
-    }
-  }, [loadCatalogData]);
+    await dbDeleteReview(reviewId, productId);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -510,8 +539,6 @@ export function AppProvider({ children }) {
       wishlist,
       routines,
       reviews,
-      refreshing,
-      refreshData,
       getReviewsForProduct,
       getProductRating,
       addReview,
@@ -547,8 +574,6 @@ export function AppProvider({ children }) {
       wishlist,
       routines,
       reviews,
-      refreshing,
-      refreshData,
       getReviewsForProduct,
       getProductRating,
       addReview,

@@ -1,32 +1,41 @@
-import { apiClient } from './apiClient';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from './firebaseConfig';
+
+const CART_COLLECTION = 'cart';
 
 /**
- * Saves a user's shopping cart items array to Firestore via the REST API.
+ * Saves a user's shopping cart items array to Firestore.
  */
 export async function syncCartToFirestore(userId, cartItems) {
   if (!userId) return;
   try {
-    const payload = {
+    const cartRef = doc(db, CART_COLLECTION, userId);
+    await setDoc(cartRef, {
+      userId,
       items: cartItems.map((item) => ({
         productId: String(item.productId),
         quantity: parseInt(item.quantity) || 1,
-      }))
-    };
-    return await apiClient.post(`/api/cart/${userId}`, payload);
+      })),
+      updatedAt: new Date().toISOString(),
+    });
   } catch (error) {
-    console.error('API syncCartToFirestore error:', error);
+    console.error('Error syncing cart to Firestore:', error);
   }
 }
 
 /**
- * Retrieves a user's shopping cart items array from Firestore via the REST API.
+ * Retrieves a user's shopping cart items array from Firestore.
  */
 export async function fetchCartFromFirestore(userId) {
   if (!userId) return [];
   try {
-    return await apiClient.get(`/api/cart/${userId}`);
+    const cartRef = doc(db, CART_COLLECTION, userId);
+    const snap = await getDoc(cartRef);
+    if (snap.exists()) {
+      return snap.data().items || [];
+    }
   } catch (error) {
-    console.error('API fetchCartFromFirestore error:', error);
+    console.error('Error fetching cart from Firestore:', error);
   }
   return [];
 }

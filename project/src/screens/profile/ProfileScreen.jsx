@@ -115,14 +115,14 @@ export default function ProfileScreen() {
           <MenuRow
             icon="heart-outline"
             label="Wishlist"
-            subtitle="Saved favorites in your account"
+            subtitle="Saved favorites synchronized in Firestore"
             badge={wishlist.length || undefined}
             onPress={() => router.push(appHref('/wishlist'))}
           />
           <MenuRow
             icon="receipt-outline"
             label="Order History"
-            subtitle={`${userOrders.length} orders`}
+            subtitle={`${userOrders.length} orders in database`}
             onPress={() => router.push(appHref('/orders'))}
           />
           <MenuRow
