@@ -36,7 +36,6 @@ export default function ProductForm() {
   const [image, setImage] = useState(existing?.image ?? '');
   
   const [selectedImageUri, setSelectedImageUri] = useState(null);
-  const [selectedImageBase64, setSelectedImageBase64] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -54,12 +53,10 @@ export default function ProductForm() {
         allowsEditing: true,
         aspect: [1, 1], // Square ratio works best for premium e-commerce catalogs
         quality: 0.8,
-        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setSelectedImageUri(result.assets[0].uri);
-        setSelectedImageBase64(result.assets[0].base64);
       }
     } catch (error) {
       console.error('Image picking error:', error);
@@ -94,7 +91,7 @@ export default function ProductForm() {
       if (selectedImageUri) {
         setUploadingImage(true);
         console.log('Uploading new image to Firebase Storage...');
-        finalImageUrl = await uploadProductImage(selectedImageUri, selectedImageBase64);
+        finalImageUrl = await uploadProductImage(selectedImageUri);
         setUploadingImage(false);
       }
 
