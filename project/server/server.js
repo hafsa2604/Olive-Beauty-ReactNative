@@ -24,6 +24,7 @@ const {
   query,
   where,
 } = require('firebase/firestore');
+const { getStorage, ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 
 const { INITIAL_PRODUCTS } = require('./seeds');
 
@@ -38,7 +39,7 @@ if (!fs.existsSync(productImagesDir)) {
   fs.mkdirSync(productImagesDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
+const storageMulter = multer.diskStorage({
   destination: (req, file, cb) => cb(null, productImagesDir),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
@@ -48,7 +49,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-  storage,
+  storage: storageMulter,
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype || !file.mimetype.startsWith('image/')) {
@@ -78,6 +79,7 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+const storage = getStorage(firebaseApp);
 
 console.log('Firebase initialized successfully on backend server.');
 
@@ -394,16 +396,44 @@ app.delete('/api/users/:uid', async (req, res) => {
  * ----------------------------------------
  */
 
-app.post('/api/uploads/product-image', upload.single('image'), (req, res) => {
+app.post('/api/uploads/product-image', upload.single('image'), async (req, res) => {
+  const localFilePath = req.file?.path;
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Image file is required.' });
     }
-    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/products/${req.file.filename}`;
-    res.status(201).json({ imageUrl });
+
+    const fileBuffer = fs.readFileSync(localFilePath);
+    
+    // Create a unique filename under products/ folder
+    const ext = path.extname(req.file.originalname || '').toLowerCase() || '.jpg';
+    const filename = `products/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+    
+    console.log(`Uploading file ${filename} to Firebase Storage...`);
+    const storageRef = ref(storage, filename);
+    
+    // Upload the file buffer to Firebase Storage
+    await uploadBytes(storageRef, fileBuffer, {
+      contentType: req.file.mimetype || 'image/jpeg'
+    });
+    
+    // Fetch secure public download URL
+    const downloadUrl = await getDownloadURL(storageRef);
+    console.log('Firebase Storage Upload Success:', downloadUrl);
+    
+    res.status(201).json({ imageUrl: downloadUrl });
   } catch (error) {
-    console.error('Product image upload API error:', error);
+    console.error('Product image upload to Firebase Storage failed:', error);
     res.status(500).json({ error: error.message || 'Failed to upload image.' });
+  } finally {
+    // Always clean up the temporary disk file
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      try {
+        fs.unlinkSync(localFilePath);
+      } catch (unlinkErr) {
+        console.warn('Failed to delete temp file:', unlinkErr.message);
+      }
+    }
   }
 });
 

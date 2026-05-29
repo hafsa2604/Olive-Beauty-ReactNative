@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebaseConfig';
+import { API_BASE_URL } from './apiConfig';
 import { INITIAL_PRODUCTS } from '@/data/products';
 import { normalizeProduct } from '@/lib/product';
 
@@ -100,42 +101,51 @@ export async function deleteProduct(id) {
 }
 
 /**
- * Uploads a local image (file/picker URI) to Firebase Storage and returns the secure download URL.
+ * Uploads a local image (file/picker URI) to Firebase Storage via backend and returns the secure download URL.
  * Supports Expo Go on both iOS and Android.
  */
 export async function uploadProductImage(localUri) {
   if (!localUri) return null;
 
   try {
-    // Standard fetch().blob() often fails in React Native/Expo with Firebase Storage.
-    // The most reliable workaround is to use XMLHttpRequest to construct the Blob.
-    const blob = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.onload = function () {
-        resolve(xhr.response);
-      };
-      xhr.onerror = function (e) {
-        console.error('XHR Blob generation error:', e);
-        reject(new TypeError('Network request failed building blob'));
-      };
-      xhr.responseType = 'blob';
-      xhr.open('GET', localUri, true);
-      xhr.send(null);
+    console.log(`[ProductService] Uploading image via backend: ${API_BASE_URL}`);
+    const formData = new FormData();
+    
+    // Extract filename and mime type for multipart upload
+    const filename = localUri.split('/').pop() || 'photo.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : `image/jpeg`;
+    
+    // React Native's Native networking layer will intercept this object and upload the file directly.
+    // It completely bypasses JS Blob and ArrayBuffer layers, ensuring a crash-free, permanent fix.
+    formData.append('image', {
+      uri: localUri,
+      name: filename,
+      type: type,
     });
 
-    // Create a unique filename under products/ folder
-    const fileExtension = localUri.split('.').pop() || 'jpg';
-    const filename = `products/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-    const storageRef = ref(storage, filename);
+    const response = await fetch(`${API_BASE_URL}/api/uploads/product-image`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
-    // Upload the blob to Firebase Storage
-    await uploadBytes(storageRef, blob);
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Upload server responded with status ${response.status}: ${errText}`);
+    }
 
-    // Fetch secure public download URL
-    const downloadUrl = await getDownloadURL(storageRef);
-    return downloadUrl;
+    const data = await response.json();
+    if (!data.imageUrl) {
+      throw new Error('Upload response did not return an imageUrl');
+    }
+    
+    console.log('[ProductService] Upload successful:', data.imageUrl);
+    return data.imageUrl;
   } catch (error) {
-    console.error('Error uploading product image to Firebase Storage:', error);
+    console.error('Error uploading product image through backend:', error);
     throw error;
   }
 }
