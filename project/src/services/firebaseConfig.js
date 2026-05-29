@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCSRYYJl98Uayw-rB79xYALE2RAJquihak",
   authDomain: "olive-beauty-306df.firebaseapp.com",
   projectId: "olive-beauty-306df",
-  storageBucket: "olive-beauty-306df.firebasestorage.app",
+  storageBucket: "olive-beauty-306df.appspot.com",
   messagingSenderId: "381565786814",
   appId: "1:381565786814:web:27e71584b96cb30f215cef",
   measurementId: "G-JWFH7FXEP3"

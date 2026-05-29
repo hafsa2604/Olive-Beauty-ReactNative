@@ -49,7 +49,7 @@ export default function ProductForm() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1], // Square ratio works best for premium e-commerce catalogs
         quality: 0.8,
