@@ -69,7 +69,7 @@ const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || "AIzaSyCSRYYJl98Uayw-rB79xYALE2RAJquihak",
   authDomain: process.env.FIREBASE_AUTH_DOMAIN || "olive-beauty-306df.firebaseapp.com",
   projectId: process.env.FIREBASE_PROJECT_ID || "olive-beauty-306df",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "olive-beauty-306df.appspot.com",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "olive-beauty-306df.firebasestorage.app",
   messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "381565786814",
   appId: process.env.FIREBASE_APP_ID || "1:381565786814:web:27e71584b96cb30f215cef",
   measurementId: process.env.FIREBASE_MEASUREMENT_ID || "G-JWFH7FXEP3"
