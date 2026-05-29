@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { AdminCredentialsCard } from '@/components/AdminCredentialsCard';
 import { GlassCard } from '@/components/GlassCard';
 import { MatchaScreen } from '@/components/MatchaScreen';
 import { useApp } from '@/context/AppContext';
@@ -83,7 +82,6 @@ export default function AdminDashboard() {
           ))}
         </GlassCard>
 
-        <AdminCredentialsCard compact />
       </ScrollView>
     </MatchaScreen>
   );
