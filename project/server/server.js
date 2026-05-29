@@ -421,12 +421,7 @@ app.post('/api/uploads/product-image', upload.single('image'), async (req, res) 
     const downloadUrl = await getDownloadURL(storageRef);
     console.log('Firebase Storage Upload Success:', downloadUrl);
     
-    res.status(201).json({ imageUrl: downloadUrl });
-  } catch (error) {
-    console.error('Product image upload to Firebase Storage failed:', error);
-    res.status(500).json({ error: error.message || 'Failed to upload image.' });
-  } finally {
-    // Always clean up the temporary disk file
+    // Clean up local temp file since upload succeeded
     if (localFilePath && fs.existsSync(localFilePath)) {
       try {
         fs.unlinkSync(localFilePath);
@@ -434,6 +429,25 @@ app.post('/api/uploads/product-image', upload.single('image'), async (req, res) 
         console.warn('Failed to delete temp file:', unlinkErr.message);
       }
     }
+
+    res.status(201).json({ imageUrl: downloadUrl });
+  } catch (error) {
+    console.error('Product image upload to Firebase Storage failed:', error.message);
+    console.log('Falling back to local Express server storage...');
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Image file is required.' });
+    }
+
+    // Construct local host URL (accessible to physical devices on the same Wi-Fi)
+    const localUrl = `${req.protocol}://${req.get('host')}/uploads/products/${req.file.filename}`;
+    console.log('Local fallback URL constructed:', localUrl);
+
+    // Return the local fallback image URL. Do NOT unlink the file.
+    res.status(201).json({ 
+      imageUrl: localUrl,
+      warning: 'Uploaded to local backend storage fallback as Firebase Storage is not enabled or accessible.'
+    });
   }
 });
 
