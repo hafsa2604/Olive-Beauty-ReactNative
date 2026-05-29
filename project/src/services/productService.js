@@ -9,7 +9,7 @@ import {
   query,
   onSnapshot,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebaseConfig';
 import { INITIAL_PRODUCTS } from '@/data/products';
 import { normalizeProduct } from '@/lib/product';
@@ -103,21 +103,25 @@ export async function deleteProduct(id) {
  * Uploads a local image (file/picker URI) to Firebase Storage and returns the secure download URL.
  * Supports Expo Go on both iOS and Android.
  */
-export async function uploadProductImage(localUri) {
+export async function uploadProductImage(localUri, base64String) {
   if (!localUri) return null;
 
   try {
-    // Standard react-native fetch-blob strategy compatible with Expo Go
-    const response = await fetch(localUri);
-    const blob = await response.blob();
-
     // Create a unique filename under products/ folder
     const fileExtension = localUri.split('.').pop() || 'jpg';
     const filename = `products/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
     const storageRef = ref(storage, filename);
 
-    // Upload to Firebase Storage
-    await uploadBytes(storageRef, blob);
+    if (base64String) {
+      // Reliable upload for Expo Go on physical iOS devices
+      const dataUrl = `data:image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension};base64,${base64String}`;
+      await uploadString(storageRef, dataUrl, 'data_url');
+    } else {
+      // Standard react-native fetch-blob strategy fallback
+      const response = await fetch(localUri);
+      const blob = await response.blob();
+      await uploadBytes(storageRef, blob);
+    }
 
     // Fetch secure public download URL
     const downloadUrl = await getDownloadURL(storageRef);
