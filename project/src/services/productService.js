@@ -194,7 +194,7 @@ export async function uploadProductImage(localUri) {
       console.log('[ProductService] Direct Firebase Storage upload successful:', downloadUrl);
       return downloadUrl;
     } catch (fbError) {
-      console.error('[ProductService] Direct Firebase Storage upload failed:', fbError.message || fbError);
+      console.warn('[ProductService] Direct Firebase Storage upload failed (this is handled by Tier 3 fallback):', fbError.message || fbError);
       
       // Tier 3: Local Device URI Fallback
       // This ensures that the user's project DOES NOT CRASH or fail to save.
