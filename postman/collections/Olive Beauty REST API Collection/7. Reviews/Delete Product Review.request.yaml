@@ -1,0 +1,9 @@
+$kind: http-request
+description: Deletes a specific product review and triggers a re-calculation of its parent product's rating metrics.
+url: "{{baseUrl}}/api/reviews/{{reviewId}}?productId={{productId}}"
+method: DELETE
+queryParams:
+  - key: productId
+    value: "{{productId}}"
+    description: Required to trigger re-calculation of the product's ratings.
+order: 3000

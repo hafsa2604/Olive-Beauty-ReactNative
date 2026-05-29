@@ -1,0 +1,5 @@
+$kind: http-request
+description: Deletes the user profile and their associated admin credentials (if applicable) from Firestore.
+url: "{{baseUrl}}/api/users/{{userId}}"
+method: DELETE
+order: 3000

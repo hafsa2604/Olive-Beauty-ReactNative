@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetches all customer reviews sorted by newest first.
+url: "{{baseUrl}}/api/reviews"
+method: GET
+order: 1000

@@ -1,0 +1,14 @@
+$kind: http-request
+name: Sync Wishlist / Favorites
+description: Saves and overwrites the user's array of favorite product IDs.
+url: "{{baseUrl}}/api/favorites/{{userId}}"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": ["1", "5", "12"]
+    }
+order: 2000

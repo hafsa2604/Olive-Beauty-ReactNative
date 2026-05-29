@@ -1,0 +1,13 @@
+$kind: http-request
+description: Updates the shipping status of an order (e.g., `pending`, `processing`, `shipped`, `delivered`, `cancelled`).
+url: "{{baseUrl}}/api/orders/{{orderId}}/status"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "status": "shipped"
+    }
+order: 3000

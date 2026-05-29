@@ -1,0 +1,5 @@
+$kind: http-request
+description: Retrieves all custom beauty routines for the user (falling back to standard Morning and Night defaults if none are stored).
+url: "{{baseUrl}}/api/routines/{{userId}}"
+method: GET
+order: 1000

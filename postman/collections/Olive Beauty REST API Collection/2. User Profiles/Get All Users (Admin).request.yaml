@@ -1,0 +1,8 @@
+$kind: http-request
+description: Lists all registered users in Firestore. Used by the admin panel dashboard.
+url: '{{baseUrl}}/api/users'
+method: GET
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+order: 4000

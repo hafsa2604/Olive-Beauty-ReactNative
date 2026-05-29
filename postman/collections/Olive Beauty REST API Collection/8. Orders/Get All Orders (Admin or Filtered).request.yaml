@@ -1,0 +1,11 @@
+$kind: http-request
+description: Fetches checkout histories from Firestore.
+url: "{{baseUrl}}/api/orders?userId={{userId}}&role=customer"
+method: GET
+queryParams:
+  - key: userId
+    value: "{{userId}}"
+  - key: role
+    value: customer
+    description: Pass 'admin' to view all store orders, or 'customer' to filter by the user's specific orders.
+order: 1000

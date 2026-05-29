@@ -1,0 +1,5 @@
+$kind: http-request
+description: Retrieves the detailed profile information for a specific user UID.
+url: "{{baseUrl}}/api/users/{{userId}}"
+method: GET
+order: 1000

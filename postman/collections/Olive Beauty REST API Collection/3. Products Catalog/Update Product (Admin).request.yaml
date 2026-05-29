@@ -1,0 +1,14 @@
+$kind: http-request
+description: Updates selected fields of an existing product document in Firestore. Recalculates `inStock` automatically.
+url: "{{baseUrl}}/api/products/{{productId}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "price": 29.99,
+      "stock": 120
+    }
+order: 4000
