@@ -362,9 +362,13 @@ export function AppProvider({ children }) {
         shipping,
         total,
         status: 'pending',
-        paymentMethod: 'cod',
-        paymentLabel: 'Cash on Delivery',
+        paymentMethod: orderDetails.paymentMethod || 'cod',
+        paymentLabel:
+          orderDetails.paymentMethod === 'card'
+            ? 'Debit / Credit Card'
+            : 'Cash on Delivery',
         paymentStatus: orderDetails.paymentStatus || 'pending_cod',
+        stripePaymentId: orderDetails.stripePaymentId || null,
         shippingAddress: orderDetails.shippingAddress.trim(),
         createdAt: new Date().toISOString(),
       };

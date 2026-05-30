@@ -56,7 +56,7 @@ export default function TermsScreen() {
                 <Text style={styles.sectionTitle}>4. Payment Security</Text>
               </View>
               <Text style={styles.bodyText}>
-                Olive Beauty currently accepts Cash on Delivery for all orders. Pay securely when your package arrives at your doorstep.
+                Olive Beauty accepts Cash on Delivery and debit/credit card payments. Card details are processed securely and full card numbers are not stored on our servers.
               </Text>
             </View>
 
