@@ -1,6 +1,6 @@
 import { Stack, router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Keyboard, StyleSheet, Text, View } from 'react-native';
+import { Alert, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppButton } from '@/components/AppButton';
@@ -8,9 +8,26 @@ import { AppInput } from '@/components/AppInput';
 import { GlassCard } from '@/components/GlassCard';
 import { KeyboardAwareForm } from '@/components/KeyboardAwareForm';
 import { MatchaScreen } from '@/components/MatchaScreen';
+import { StripeCardFields } from '@/components/StripeCardFields';
 import { useApp } from '@/context/AppContext';
 import { appHref } from '@/lib/href';
+import { processStripeTestPayment } from '@/lib/stripeTest';
 import { SageColors, Radius, Spacing } from '@/constants/theme';
+
+const PAYMENT_METHODS = [
+  {
+    id: 'cod',
+    title: 'Cash on Delivery',
+    subtitle: 'Pay when your order arrives',
+    icon: 'cash-outline',
+  },
+  {
+    id: 'card',
+    title: 'Debit / Credit Card',
+    subtitle: 'Visa, Mastercard & more',
+    icon: 'card-outline',
+  },
+];
 
 export default function CheckoutScreen() {
   const { user, cart, products, placeOrder } = useApp();
@@ -18,6 +35,11 @@ export default function CheckoutScreen() {
   const [contactPhone, setContactPhone] = useState(user?.phone ?? '');
   const [contactEmail, setContactEmail] = useState(user?.email ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
+  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [zip, setZip] = useState('');
   const [loading, setLoading] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => {
@@ -26,6 +48,9 @@ export default function CheckoutScreen() {
   }, 0);
   const shipping = 5.99;
   const total = subtotal + shipping;
+
+  const paymentSummaryLabel =
+    paymentMethod === 'cod' ? 'Cash on Delivery' : 'Debit / Credit Card';
 
   const handlePlaceOrder = async () => {
     Keyboard.dismiss();
@@ -55,6 +80,29 @@ export default function CheckoutScreen() {
       return;
     }
 
+    let stripePaymentId = null;
+    let paymentStatus = paymentMethod === 'cod' ? 'pending_cod' : 'pending';
+
+    if (paymentMethod === 'card') {
+      setLoading(true);
+      const payment = await processStripeTestPayment({
+        cardNumber,
+        expiry,
+        cvc,
+        zip,
+        amount: total,
+      });
+      setLoading(false);
+
+      if (!payment.success) {
+        Alert.alert('Payment failed', payment.message);
+        return;
+      }
+
+      stripePaymentId = payment.paymentId;
+      paymentStatus = 'paid';
+    }
+
     setLoading(true);
     try {
       const order = await placeOrder({
@@ -62,9 +110,10 @@ export default function CheckoutScreen() {
         contactPhone,
         contactEmail,
         shippingAddress: address,
-        paymentMethod: 'cod',
+        paymentMethod,
         shipping,
-        paymentStatus: 'pending_cod',
+        paymentStatus,
+        stripePaymentId,
       });
       setLoading(false);
 
@@ -145,13 +194,36 @@ export default function CheckoutScreen() {
               <Ionicons name="wallet-outline" size={22} color={SageColors.primary} />
               <Text style={styles.section}>Payment Method</Text>
             </View>
-            <View style={styles.payOption}>
-              <Ionicons name="cash-outline" size={24} color={SageColors.primary} />
-              <View style={styles.payTextCol}>
-                <Text style={styles.payTitle}>Cash on Delivery</Text>
-                <Text style={styles.paySubtitle}>Pay when your order arrives</Text>
-              </View>
-            </View>
+            {PAYMENT_METHODS.map((method) => {
+              const selected = paymentMethod === method.id;
+              return (
+                <Pressable
+                  key={method.id}
+                  style={[styles.payOption, selected && styles.payOptionSelected]}
+                  onPress={() => setPaymentMethod(method.id)}>
+                  <View style={[styles.radio, selected && styles.radioSelected]}>
+                    {selected ? <View style={styles.radioDot} /> : null}
+                  </View>
+                  <Ionicons name={method.icon} size={24} color={SageColors.primary} />
+                  <View style={styles.payTextCol}>
+                    <Text style={styles.payTitle}>{method.title}</Text>
+                    <Text style={styles.paySubtitle}>{method.subtitle}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+            {paymentMethod === 'card' ? (
+              <StripeCardFields
+                cardNumber={cardNumber}
+                onCardNumberChange={setCardNumber}
+                expiry={expiry}
+                onExpiryChange={setExpiry}
+                cvc={cvc}
+                onCvcChange={setCvc}
+                zip={zip}
+                onZipChange={setZip}
+              />
+            ) : null}
           </GlassCard>
 
           <GlassCard style={styles.block}>
@@ -170,13 +242,17 @@ export default function CheckoutScreen() {
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>Payment</Text>
-              <Text style={styles.value}>Cash on Delivery</Text>
+              <Text style={styles.value}>{paymentSummaryLabel}</Text>
             </View>
             <View style={[styles.row, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.total}>${total.toFixed(2)}</Text>
             </View>
-            <AppButton title="Place Order" onPress={handlePlaceOrder} loading={loading} />
+            <AppButton
+              title={paymentMethod === 'card' ? 'Pay & Place Order' : 'Place Order'}
+              onPress={handlePlaceOrder}
+              loading={loading}
+            />
           </GlassCard>
         </KeyboardAwareForm>
       </MatchaScreen>
@@ -214,8 +290,31 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
+    borderColor: SageColors.cardBorder,
+    marginBottom: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  payOptionSelected: {
     borderColor: SageColors.primary,
     backgroundColor: SageColors.sageLight,
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: SageColors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioSelected: {
+    borderColor: SageColors.primaryDark,
+  },
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: SageColors.primary,
   },
   payTextCol: {
     flex: 1,

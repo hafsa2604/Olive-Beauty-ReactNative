@@ -852,6 +852,7 @@ app.post('/api/orders', async (req, res) => {
       paymentMethod: orderData.paymentMethod || 'cod',
       paymentLabel: orderData.paymentLabel || 'Cash on Delivery',
       paymentStatus: orderData.paymentStatus || 'pending_cod',
+      stripePaymentId: orderData.stripePaymentId || null,
       shippingAddress: orderData.shippingAddress ? orderData.shippingAddress.trim() : '',
       createdAt: new Date().toISOString(),
     };
