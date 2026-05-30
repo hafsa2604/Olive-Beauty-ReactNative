@@ -1,0 +1,20 @@
+$kind: http-request
+description: Creates a new product document in Firestore.
+url: "{{baseUrl}}/api/products"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Matcha Exfoliating Scrub",
+      "description": "Gentle botanical exfoliating face scrub with organic matcha particles and green tea infusions.",
+      "price": 28.50,
+      "category": "skincare",
+      "skinType": "Suitable for acne-prone skin",
+      "ingredients": "Matcha leaves, Walnut shell, Green tea extract, Honey",
+      "stock": 35,
+      "image": "glow cleanser.jpeg"
+    }
+order: 3000

@@ -1,0 +1,17 @@
+$kind: http-request
+description: Creates a new product review in Firestore. Automatically re-calculates the product's average rating and reviewCount, saving it inside the products collection.
+url: "{{baseUrl}}/api/reviews"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productId": "1",
+      "userId": "{{userId}}",
+      "authorName": "Jane Doe",
+      "rating": 5,
+      "comment": "Absolutely love this Glow Cleanser! My skin feels incredibly refreshed and hydrated after every wash. Clean ingredients match the premium feel."
+    }
+order: 2000

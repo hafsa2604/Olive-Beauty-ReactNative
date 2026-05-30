@@ -1,0 +1,15 @@
+$kind: http-request
+description: Updates the contact profile information (such as name, phone, or shipping address) in Firestore.
+url: "{{baseUrl}}/api/users/{{userId}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Jane Smith",
+      "phone": "+1 555 9999",
+      "address": "456 Sage Avenue, Suite 10"
+    }
+order: 2000

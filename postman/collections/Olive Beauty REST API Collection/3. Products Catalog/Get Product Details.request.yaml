@@ -1,0 +1,5 @@
+$kind: http-request
+description: Gets the detailed parameters (ingredients, stock levels, rating, category) for a single product ID.
+url: "{{baseUrl}}/api/products/{{productId}}"
+method: GET
+order: 2000

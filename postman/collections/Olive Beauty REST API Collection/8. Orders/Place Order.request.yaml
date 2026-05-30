@@ -1,0 +1,33 @@
+$kind: http-request
+description: Creates a new order document in Firestore.
+url: "{{baseUrl}}/api/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "userId": "{{userId}}",
+      "userEmail": "jane.doe@example.com",
+      "userName": "Jane Doe",
+      "contactName": "Jane Doe",
+      "contactPhone": "+1 555 1234",
+      "contactEmail": "jane.doe@example.com",
+      "items": [
+        {
+          "productId": "1",
+          "name": "Glow Cleanser",
+          "price": 24.99,
+          "quantity": 2
+        }
+      ],
+      "subtotal": 49.98,
+      "shipping": 5.99,
+      "total": 55.97,
+      "status": "pending",
+      "paymentMethod": "cod",
+      "paymentLabel": "Cash on Delivery",
+      "shippingAddress": "123 Lavender Lane, Sage Hills, CA 90210"
+    }
+order: 2000

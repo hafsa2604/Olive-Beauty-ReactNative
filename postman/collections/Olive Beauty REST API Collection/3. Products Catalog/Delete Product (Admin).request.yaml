@@ -1,0 +1,5 @@
+$kind: http-request
+description: Deletes a product document from Firestore.
+url: "{{baseUrl}}/api/products/{{productId}}"
+method: DELETE
+order: 5000

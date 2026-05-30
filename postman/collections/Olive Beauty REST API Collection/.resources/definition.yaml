@@ -1,0 +1,16 @@
+$kind: collection
+description: |-
+  Production-ready Postman Collection for testing all REST API endpoints of the Olive Beauty React Native backend.
+
+  ### Setup Environment
+  Set the following variables in Postman:
+  - `baseUrl`: `http://localhost:5000` (or `http://<your-local-ip>:5000` for mobile testing)
+  - `userId`: A valid Firebase UID (from registration/login response)
+  - `productId`: A valid product document ID (e.g. `1` or `2` or auto-generated ID)
+  - `reviewId`: A valid review document ID
+variables:
+  baseUrl: http://localhost:5000
+  userId: admin-1
+  productId: "1"
+  reviewId: seed_1_0
+  orderId: replace-with-order-id

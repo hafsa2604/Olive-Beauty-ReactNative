@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetches all products from Firestore. If the products database is empty, the server automatically seeds it with the default 41 items.
+url: "{{baseUrl}}/api/products"
+method: GET
+order: 1000

@@ -1,0 +1,10 @@
+# Use this workspace to collaborate
+workspace:
+  id: a6d37f1d-c740-4636-b9aa-9840e02dc48e
+
+localResources:
+  collections:
+    - ..\project\OliveBeauty.postman_collection.json
+  docs:
+    - ..\project\AGENTS.md
+md
