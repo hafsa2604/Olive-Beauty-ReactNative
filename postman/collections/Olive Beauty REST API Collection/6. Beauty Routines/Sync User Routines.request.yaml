@@ -1,0 +1,20 @@
+$kind: http-request
+description: Saves and overwrites the custom routines array for the user in Firestore.
+url: "{{baseUrl}}/api/routines/{{userId}}"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "routines": [
+        {
+          "id": "routine-1",
+          "name": "Matcha Morning Plump",
+          "steps": "Matcha Scrub → Vitamin C Serum → Glow Protect Cream",
+          "category": "skincare"
+        }
+      ]
+    }
+order: 2000

@@ -1,0 +1,15 @@
+$kind: http-request
+description: Registers a new customer account in Firebase Auth and provisions their profile document in Firestore.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Jane Doe",
+      "email": "jane.doe@example.com",
+      "password": "password123"
+    }
+order: 1000

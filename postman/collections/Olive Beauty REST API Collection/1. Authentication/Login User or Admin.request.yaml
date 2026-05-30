@@ -1,0 +1,14 @@
+$kind: http-request
+description: Authenticates a customer or admin. To login as Admin, use email `admin@olivebeauty.com` and password `admin123`. The admin account is automatically provisioned if it doesn't exist yet.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "jane.doe@example.com",
+      "password": "password123"
+    }
+order: 2000

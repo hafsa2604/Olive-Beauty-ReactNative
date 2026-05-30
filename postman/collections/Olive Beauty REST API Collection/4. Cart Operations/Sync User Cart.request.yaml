@@ -1,0 +1,22 @@
+$kind: http-request
+description: Saves and overwrites the user's active shopping cart array to Firestore.
+url: "{{baseUrl}}/api/cart/{{userId}}"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "1",
+          "quantity": 2
+        },
+        {
+          "productId": "5",
+          "quantity": 1
+        }
+      ]
+    }
+order: 2000
