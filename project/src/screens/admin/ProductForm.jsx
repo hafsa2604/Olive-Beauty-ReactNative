@@ -111,15 +111,15 @@ export default function ProductForm() {
 
       if (existing) {
         await updateProduct(existing.id, payload);
-        Alert.alert('Success', 'Product updated successfully in Firestore!');
+        Alert.alert('Success', 'Product updated successfully!');
       } else {
         await addProduct(payload);
-        Alert.alert('Success', 'Product created successfully in Firestore!');
+        Alert.alert('Success', 'Product created successfully!');
       }
       router.back();
     } catch (error) {
       console.error('Save product failed:', error);
-      Alert.alert('Save Failed', 'Failed to save product in Firebase: ' + error.message);
+      Alert.alert('Save Failed', 'Failed to save product: ' + error.message);
     } finally {
       setUploadingImage(false);
       setSaving(false);
@@ -202,7 +202,7 @@ export default function ProductForm() {
             <View style={styles.loaderWrap}>
               <ActivityIndicator size="small" color={SageColors.primary} />
               <Text style={styles.loaderText}>
-                {uploadingImage ? 'Uploading image to Firebase Storage...' : 'Saving to Firestore database...'}
+                {uploadingImage ? 'Uploading image...' : 'Saving changes...'}
               </Text>
             </View>
           )}

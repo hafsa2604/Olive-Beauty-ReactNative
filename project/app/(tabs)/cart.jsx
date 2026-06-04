@@ -97,6 +97,12 @@ export default function CartScreen() {
             <Text style={styles.total}>${total.toFixed(2)}</Text>
           </View>
           <AppButton title="Proceed to Checkout" onPress={() => router.push(appHref('/checkout'))} />
+          <AppButton
+            title="Continue Shopping"
+            variant="outline"
+            onPress={() => router.push(appHref('/(tabs)'))}
+            style={styles.continueShoppingBtn}
+          />
         </GlassCard>
       </KeyboardAwareForm>
     </MatchaScreen>
@@ -232,5 +238,8 @@ const styles = StyleSheet.create({
   shopBtn: {
     width: '100%',
     maxWidth: 280,
+  },
+  continueShoppingBtn: {
+    marginTop: Spacing.sm,
   },
 });

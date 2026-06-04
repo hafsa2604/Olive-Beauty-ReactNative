@@ -253,6 +253,12 @@ export default function CheckoutScreen() {
               onPress={handlePlaceOrder}
               loading={loading}
             />
+            <AppButton
+              title="Continue Shopping"
+              variant="outline"
+              onPress={() => router.push(appHref('/(tabs)'))}
+              style={styles.continueShoppingBtn}
+            />
           </GlassCard>
         </KeyboardAwareForm>
       </MatchaScreen>
@@ -362,5 +368,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: SageColors.primaryDark,
+  },
+  continueShoppingBtn: {
+    marginTop: Spacing.sm,
   },
 });

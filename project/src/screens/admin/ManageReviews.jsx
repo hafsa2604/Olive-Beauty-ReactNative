@@ -68,7 +68,7 @@ export default function ManageReviews() {
         ListHeaderComponent={
           <>
             <Text style={styles.screenHint}>
-              All reviews are stored in Firestore. Remove inappropriate or duplicate entries below.
+              Remove inappropriate or duplicate customer reviews below.
             </Text>
             <View style={styles.filterRow}>
               {filters.map((f) => (
@@ -84,7 +84,7 @@ export default function ManageReviews() {
             </View>
           </>
         }
-        ListEmptyComponent={<Text style={styles.empty}>No reviews in the database yet.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>No reviews yet.</Text>}
         renderItem={({ item }) => (
           <GlassCard style={styles.card}>
             <View style={styles.row}>

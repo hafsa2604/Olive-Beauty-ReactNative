@@ -21,7 +21,7 @@ export default function ManageOrders() {
             Tap a status below each order to update in real-time: pending → processing → shipped → delivered → cancelled.
           </Text>
         }
-        ListEmptyComponent={<Text style={styles.empty}>No orders placed yet in Firebase.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>No orders placed yet.</Text>}
         renderItem={({ item }) => {
           // Try to match customer from the users collection in real-time, fallback to stored order details
           const customer = users.find((u) => u.id === item.userId);

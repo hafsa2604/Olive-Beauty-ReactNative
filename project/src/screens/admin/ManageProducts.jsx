@@ -22,7 +22,7 @@ export default function ManageProducts() {
         onPress: async () => {
           try {
             await deleteProduct(item.id);
-            Alert.alert('Deleted', 'Product successfully removed from database.');
+            Alert.alert('Deleted', 'Product successfully removed from catalog.');
           } catch (error) {
             console.error('Delete failed:', error);
             Alert.alert('Error', 'Failed to delete product. Please try again.');
@@ -48,7 +48,7 @@ export default function ManageProducts() {
           data={products}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>No products available in Firestore.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>No products available.</Text>}
           renderItem={({ item }) => (
             <GlassCard style={styles.card}>
               <View style={styles.row}>
