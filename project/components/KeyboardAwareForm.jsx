@@ -20,9 +20,9 @@ export function KeyboardAwareForm({
   return (
     <KeyboardAvoidingView
       style={[styles.flex, style]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={
-        keyboardVerticalOffset ?? (Platform.OS === 'ios' ? (nested ? 96 : 64) : 0)
+        keyboardVerticalOffset ?? (Platform.OS === 'ios' ? (nested ? 96 : 64) : (nested ? 80 : 48))
       }>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.flex}>
