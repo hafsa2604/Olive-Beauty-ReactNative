@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import {
@@ -28,6 +28,7 @@ import { getAvailableStock, normalizeProduct } from '@/lib/product';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams();
+  const scrollViewRef = useRef(null);
   const { getProduct, getProductRating, addToCart, toggleWishlist, isWishlisted } = useApp();
   const [qty, setQty] = useState(1);
   const product = normalizeProduct(getProduct(id ?? ''));
@@ -72,6 +73,7 @@ export default function ProductDetailScreen() {
           keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 80}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <ScrollView
+              ref={scrollViewRef}
               style={styles.flex}
               contentContainerStyle={styles.scroll}
               keyboardShouldPersistTaps="handled"
@@ -156,7 +158,15 @@ export default function ProductDetailScreen() {
           </GlassCard>
 
               <GlassCard style={styles.reviewsCard}>
-                <ProductReviews productId={String(product.id)} productName={product.name} />
+                <ProductReviews
+                  productId={String(product.id)}
+                  productName={product.name}
+                  onFocusInput={() => {
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollToEnd({ animated: true });
+                    }, 200);
+                  }}
+                />
               </GlassCard>
             </ScrollView>
           </TouchableWithoutFeedback>

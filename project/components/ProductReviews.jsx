@@ -23,7 +23,7 @@ function formatReviewDate(iso) {
   }
 }
 
-export function ProductReviews({ productId, productName }) {
+export function ProductReviews({ productId, productName, onFocusInput }) {
   const app = useApp();
   const user = app?.user;
   const getReviewsForProduct = app?.getReviewsForProduct;
@@ -112,6 +112,7 @@ export function ProductReviews({ productId, productName }) {
           multiline
           numberOfLines={4}
           style={styles.commentInput}
+          onFocus={onFocusInput}
         />
         <AppButton
           title={user ? 'Post Review' : 'Sign in to Review'}
